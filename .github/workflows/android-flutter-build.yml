@@ -99,6 +99,9 @@ jobs:
         run: |
           npm install -g pnpm@10.7.0
           corepack enable
+      - name: Install plugin toolchain dependencies
+        working-directory: plugins/packages/buildin/workflow
+        run: corepack pnpm install --frozen-lockfile
 
       - name: Install Java
         uses: actions/setup-java@v4
