@@ -124,6 +124,23 @@ jobs:
         shell: pwsh
         run: fvm install --skip-pub-get
 
+      - name: Pre-fetch Flutter packages
+        working-directory: apps/flutter/app
+        shell: pwsh
+        run: |
+          git config --global http.version HTTP/1.1
+          git config --global http.postBuffer 524288000
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 999999
+          git config --global core.compression 0
+          $attempts = 4
+          for ($i = 1; $i -le $attempts; $i++) {
+            fvm flutter pub get --enforce-lockfile
+            if ($LASTEXITCODE -eq 0) { Write-Host "pub get ok on attempt $i"; exit 0 }
+            Write-Host "pub get attempt $i failed (exit $LASTEXITCODE)"
+            Start-Sleep -Seconds 20
+          }
+          throw "flutter pub get failed after $attempts attempts"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
