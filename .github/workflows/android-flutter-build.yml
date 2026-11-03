@@ -103,6 +103,8 @@ jobs:
         working-directory: plugins/packages/buildin/workflow
         run: corepack pnpm install --frozen-lockfile
 
+      - name: Create Python virtualenv
+        run: python -m venv .venv
       - name: Install Java
         uses: actions/setup-java@v4
         with:
