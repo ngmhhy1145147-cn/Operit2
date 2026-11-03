@@ -46,9 +46,9 @@ def _android_rt_lib_dir(ndk):
         if not clang.is_dir():
             continue
         for version in sorted(clang.iterdir()):
-            linux = version / "lib/linux"
-            if (linux / "libclang_rt.builtins-aarch64-android.a").is_file():
-                return linux
+            lib_dir = version / "lib"
+            if (lib_dir / "linux/libclang_rt.builtins-aarch64-android.a").is_file():
+                return lib_dir
     return None
 
 
