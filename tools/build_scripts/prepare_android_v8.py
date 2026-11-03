@@ -306,6 +306,49 @@ def stub_missing_pydeps(source):
         manifest.write_text("# stub: omitted from the published rusty_v8 crate\n")
 
 
+def patch_windows_host_support(source):
+    """Allow the vendored Chromium GN configs to build Android on Windows hosts.
+
+    Chromium upstream only supports Android builds on Linux hosts: BUILDCONFIG.gn
+    asserts host_os == "linux" and config.gni has no win branch for
+    android_host_os, so GN rejects a Windows-hosted Android build before any
+    toolchain selection happens. Operit2's Windows CI builds the Android V8 from
+    source, so relax the host check and map win to the NDK's windows-x86_64
+    prebuilt directory name.
+    """
+    buildconfig = source / "build/config/BUILDCONFIG.gn"
+    content = buildconfig.read_text()
+    if 'plus Windows via Operit2' not in content:
+        pattern = r'^(\s*)assert\(host_os == "linux", "Android builds are only supported on Linux\."\)$'
+        replaced, count = re.subn(
+            pattern,
+            (r'\1assert(host_os == "linux" || host_os == "win",\n'
+             r'\1       "Android builds are only supported on Linux (plus Windows via Operit2).")'),
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        assert count == 1, 'BUILDCONFIG.gn android host assert not found'
+        buildconfig.write_text(replaced)
+    config_gni = source / "build/config/android/config.gni"
+    content = config_gni.read_text()
+    if 'android_host_os = "windows"' not in content:
+        marker = (
+            '  } else {\n'
+            '    assert(false, "Need Android toolchain support for your build OS.")\n'
+            '  }'
+        )
+        replacement = (
+            '  } else if (host_os == "win") {\n'
+            '    android_host_os = "windows"\n'
+            '  } else {\n'
+            '    assert(false, "Need Android toolchain support for your build OS.")\n'
+            '  }'
+        )
+        assert marker in content, 'config.gni android_host_os else-block not found'
+        config_gni.write_text(content.replace(marker, replacement, 1))
+
+
 def install_linux_sysroot(source):
     """Install the host debian sysroot that GN's linux toolchains assert on.
 
@@ -498,6 +541,7 @@ def build(cache, config, ndk):
     source = Path(next(p["manifest_path"] for p in metadata["packages"] if p["name"] == "v8")).parent
     patch_android_config(source)
     stub_missing_pydeps(source)
+    patch_windows_host_support(source)
     install_linux_sysroot(source)
     place_ndk(source, ndk)
     prepare_icu(source)
