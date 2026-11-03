@@ -36,7 +36,53 @@ def _relax_assert(source, name):
         path.write_text(content.replace(ASSERT_OLD, ASSERT_NEW, 1))
 
 
-def apply_windows_host_patches(source):
+def _android_rt_lib_dir(ndk):
+    """Return the NDK directory holding the Android compiler-rt builtins."""
+    prebuilt = ndk / "toolchains/llvm/prebuilt"
+    if not prebuilt.is_dir():
+        return None
+    for host in sorted(prebuilt.iterdir()):
+        clang = host / "lib/clang"
+        if not clang.is_dir():
+            continue
+        for version in sorted(clang.iterdir()):
+            linux = version / "lib/linux"
+            if (linux / "libclang_rt.builtins-aarch64-android.a").is_file():
+                return linux
+    return None
+
+
+def _patch_android_rtlib(source, ndk):
+    """Point Android builds at the NDK compiler-rt builtins.
+
+    Chromium's clang_lib() template resolves compiler-rt relative to
+    clang_base_path, which on Windows is the Chromium clang package: it ships
+    Windows runtimes only, so GN demands a libclang_rt.builtins-aarch64-android.a
+    that never exists and ninja fails with "missing and no known rule".
+    The NDK ships exactly that library, so Android toolchains use it instead.
+    """
+    lib_dir = _android_rt_lib_dir(ndk)
+    if lib_dir is None:
+        return
+    build_gn = source / "build/config/clang/BUILD.gn"
+    content = build_gn.read_text()
+    marker = '_clang_lib_dir = "$clang_base_path/lib/clang/$clang_version/lib"'
+    if marker not in content or "use the NDK copy" in content:
+        return
+    newline = chr(10)
+    replacement = (
+        marker
+        + newline + "      # Added by Operit2: the Chromium clang package for Windows"
+        + newline + "      # ships no Android compiler-rt, so Android targets use the NDK copy."
+        + newline + "      if (is_android) {"
+        + newline + '        _clang_lib_dir = "' + lib_dir.as_posix() + '"'
+        + newline + "      }"
+    )
+    assert '"' not in lib_dir.as_posix(), "NDK path contains a quote"
+    build_gn.write_text(content.replace(marker, replacement, 1))
+
+
+def apply_windows_host_patches(source, ndk=None):
     """Relax the Windows toolchain host checks and add the missing toolchain.
 
     The Windows toolchain files are loaded while the default toolchain targets
@@ -56,3 +102,5 @@ def apply_windows_host_patches(source):
     if 'win_toolchains("x64_v8_arm64")' not in content:
         content += TOOLCHAIN_BLOCK
     build_gn.write_text(content)
+    if ndk is not None:
+        _patch_android_rtlib(source, ndk)
