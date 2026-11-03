@@ -85,7 +85,13 @@ def run(command, **kwargs):
 
 
 def output(command):
-    return run(command, capture_output=True, text=True).stdout.strip()
+    return run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    ).stdout.strip()
 
 
 def api_level():
