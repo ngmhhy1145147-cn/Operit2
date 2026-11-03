@@ -33,6 +33,8 @@ except ImportError:  # Windows: Gradle serializes task execution instead.
     fcntl = None
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from windows_android_v8_patches import apply_windows_host_patches
 BRIDGE_LOCK = REPO_ROOT / "apps/flutter/native/operit-flutter-bridge/Cargo.lock"
 CACHE_ROOT = REPO_ROOT / "tools/release/work/android-v8"
 IS_WINDOWS = sys.platform.startswith("win")
@@ -542,6 +544,7 @@ def build(cache, config, ndk):
     patch_android_config(source)
     stub_missing_pydeps(source)
     patch_windows_host_support(source)
+    apply_windows_host_patches(source)
     install_linux_sysroot(source)
     place_ndk(source, ndk)
     prepare_icu(source)
