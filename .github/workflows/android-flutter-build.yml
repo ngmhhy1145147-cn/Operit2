@@ -68,7 +68,7 @@ jobs:
   build-android:
     needs: build-android-runtime
     runs-on: windows-2025
-    timeout-minutes: 90
+    timeout-minutes: 300
     env:
       RUSTFLAGS: -Awarnings
       PYTHONUTF8: "1"
@@ -196,7 +196,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tools/release/work/android-v8
-          key: ${{ runner.os }}-${{ runner.arch }}-android-v8-${{ hashFiles('tools/build_scripts/prepare_android_v8.py', 'apps/flutter/native/operit-flutter-bridge/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-android-v8-v152.2.0
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-android-v8-
 
       - name: Check build environment
         shell: pwsh
