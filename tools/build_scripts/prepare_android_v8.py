@@ -544,7 +544,7 @@ def build(cache, config, ndk):
     patch_android_config(source)
     stub_missing_pydeps(source)
     patch_windows_host_support(source)
-    apply_windows_host_patches(source)
+    apply_windows_host_patches(source, ndk)
     install_linux_sysroot(source)
     place_ndk(source, ndk)
     prepare_icu(source)
